@@ -7,8 +7,99 @@ import java.util.*;
  * CS108 Stanford.
  */
 public class Sudoku {
+	
+	private class Spot implements Comparable<Spot>{
+		private int num;
+		private int row;
+		private int col;
+		private int assignableNumber;
+		private static final int MAX_NUMBER = 9;
+		
+		public Spot(int num , int row , int col){
+			this.num = num;
+			this.row = row;
+			this.col = col;
+			this.assignableNumber = 0;
+		}
+		
+		//copy constructor
+		public Spot(Spot sp){
+			this.num = sp.num;
+			this.row = sp.row;
+			this.col = sp.col;
+			this.assignableNumber = sp.assignableNumber;
+		}
+		
+		public int getNumber() {
+			return num;
+		}
+		
+		public boolean setNumber(int num) {
+			if(num < 0 || num > MAX_NUMBER) {
+				return false;
+			}
+			if(num == 0) {
+				this.num = num;
+				return true;
+			}
+			boolean[] possible = getAssignableNumbers();
+			if(possible[num]){
+				this.num = num;
+				return true;
+			}
+			
+			return false;
+		}
+		
+		
+		private boolean[] getAssignableNumbers() {
+			boolean [] possible = new boolean[10];
+			//initialization
+			for(int i = 0 ; i < 10 ; i++) {
+				possible[i] = true;
+			}
+			//get Column numbers
+			for(int i = 0 ; i < SIZE; i++) {
+				possible[grid[row][i].getNumber()] = false;
+			}
+			//get Row numbers
+			for(int i = 0 ; i < SIZE; i++) {
+				possible[grid[i][col].getNumber()] = false;
+			}
+			int squareRow = row/PART;
+			int squareCol = col/PART;
+			// get Square numbers
+			for(int i = 0 ;i <= 2; i++) {
+				for(int j = 0 ; j <= 2; j++) {
+					possible[grid[squareRow * PART + i][squareCol * PART + j].getNumber()] = false;
+				}
+			}
+			return possible;
+		}
+		
+		public void countAssignableNumbers() {
+			boolean[] possible = getAssignableNumbers();
+			for(int i = 1 ; i < 10 ; i++) {
+				if(possible[i]) assignableNumber++;
+			}
+		}
+
+		@Override
+		public int compareTo(Spot compareSpot) {
+			return this.assignableNumber - compareSpot.assignableNumber;
+		}
+	}	
+		
 	// Provided grid data for main/testing
 	// The instance variable strategy is up to you.
+	
+	private Spot[][] start;
+	private Spot[][] grid;
+	private Spot[][] result;
+	private int numberOfSolves;
+	private long time;
+	private List<Spot> list;
+	
 	
 	// Provided easy 1 6 grid
 	// (can paste this text into the GUI too)
@@ -133,33 +224,129 @@ public class Sudoku {
 		System.out.println("solutions:" + count);
 		System.out.println("elapsed:" + sudoku.getElapsed() + "ms");
 		System.out.println(sudoku.getSolutionText());
+	
+		sudoku = new Sudoku(easyGrid);
+		
+		System.out.println(sudoku); // print the raw problem
+		count = sudoku.solve();
+		System.out.println("solutions:" + count);
+		System.out.println("elapsed:" + sudoku.getElapsed() + "ms");
+		System.out.println(sudoku.getSolutionText());
+		
+		sudoku = new Sudoku(mediumGrid);
+		
+		System.out.println(sudoku); // print the raw problem
+		count = sudoku.solve();
+		System.out.println("solutions:" + count);
+		System.out.println("elapsed:" + sudoku.getElapsed() + "ms");
+		System.out.println(sudoku.getSolutionText());
+		
+		
 	}
-	
-	
 	
 
 	/**
 	 * Sets up based on the given ints.
 	 */
 	public Sudoku(int[][] ints) {
-		// YOUR CODE HERE
+		start = new Spot[SIZE][SIZE];
+		grid = new Spot[SIZE][SIZE];
+		for(int i = 0 ; i < SIZE ; i++) {
+			for(int j = 0 ; j < SIZE; j++) {
+				start[i][j] = new Spot(ints[i][j] , i , j);
+				grid[i][j] = new Spot(ints[i][j] , i , j);
+			}
+		}
+		numberOfSolves = 0;
+		list = new ArrayList<Spot>();
+		for(int i = 0 ; i < SIZE ; i++) {
+			for(int j = 0 ; j < SIZE; j++) {
+				if(grid[i][j].getNumber() == 0) {
+					grid[i][j].countAssignableNumbers();
+					list.add(grid[i][j]);
+				}
+//				System.out.print(grid[i][j].assignableNumber + " ");
+			}
+//			System.out.println();
+		}
+//		System.out.println();
+		Collections.sort(list);		
 	}
 	
+	public Sudoku(String str) {
+		this(textToGrid(str));
+	}
 	
 	
 	/**
 	 * Solves the puzzle, invoking the underlying recursive search.
 	 */
 	public int solve() {
-		return 0; // YOUR CODE HERE
+		long startTime = System.currentTimeMillis();
+		int index = 0;
+		solvePuzzle(index);
+		long endTime = System.currentTimeMillis();
+		time = endTime - startTime;
+		return numberOfSolves; // YOUR CODE HERE
 	}
 	
+	private void solvePuzzle(int index) {
+		if(numberOfSolves >= MAX_SOLUTIONS) return;
+		if(index == list.size()) {
+			if(numberOfSolves == 0)  copy(grid);
+			numberOfSolves++;
+			return;
+		}
+//		System.out.println(index + " " + list.get(index).row + " " + list.get(index).col );
+//		System.out.println(list.get(index).getRow() + " " +
+//				list.get(index).getCol() + " " + list.get(index).getNumber());
+		for(int i = 1; i <= 9 ; i++) {
+			if(list.get(index).setNumber(i)) {
+				grid[list.get(index).row][list.get(index).col].setNumber(i);
+				solvePuzzle(index + 1);
+				grid[list.get(index).row][list.get(index).col].setNumber(0);
+				list.get(index).setNumber(0);
+			}else {
+//				System.out.println(index + "    " + i);
+			}
+		}
+		
+	}
+
+
+	private void copy(Spot[][] source) {
+		result = new Spot[SIZE][SIZE];
+		for(int i = 0 ; i < SIZE; i++) {
+			for(int j = 0 ; j < SIZE; j++) {
+				result[i][j] = new Spot(source[i][j]);
+			}
+		}
+	}
+	
+	private String gridToString(Spot[][] gr) {
+		String s = "";
+		for(int i = 0 ; i < SIZE; i++) {
+			for(int j = 0 ; j < SIZE; j++) {
+//				System.out.println(i + " " + j);
+				s = s + gr[i][j].getNumber() + " ";
+			}
+			s += "\n";
+		}
+		return s;
+	}
+
 	public String getSolutionText() {
-		return ""; // YOUR CODE HERE
+		if(numberOfSolves == 0) return "";
+		return gridToString(result);
 	}
 	
 	public long getElapsed() {
-		return 0; // YOUR CODE HERE
+		return time;
+	}
+	
+	@Override
+	public String toString() {
+		return gridToString(start);
 	}
 
 }
